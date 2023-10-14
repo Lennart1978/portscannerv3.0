@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -47,7 +48,7 @@ func main() {
 
 	a := app.NewWithID("com.lennart.portscanv3")
 	a.SetIcon(resourceIconPng)
-	w := a.NewWindow("Portscanner v3.0")
+	w := a.NewWindow("Portscanner v3.5")
 	w.Resize(fyne.NewSize(windowWidth, windowHeight))
 	w.CenterOnScreen()
 	w.SetFixedSize(true)
@@ -76,7 +77,7 @@ func main() {
 	portsStartEntry := widget.NewEntry()
 	portsStartEntry.Text = "1"
 	portsEndEntry := widget.NewEntry()
-	portsEndEntry.Text = "65535"
+	portsEndEntry.Text = "1000"
 	portsEndContainer := container.New(&customLayout{width: 60, height: 40}, portsEndEntry)
 
 	// Progress bar
@@ -84,31 +85,57 @@ func main() {
 
 	// Button
 	scanButton := widget.NewButtonWithIcon("scan !", theme.LoginIcon(), func() {
-		Scanner.Reset()
-		portsOpenLabel.SetText("")
-		Scanner.startPort, _ = strconv.Atoi(portsStartEntry.Text)
-		Scanner.endPort, _ = strconv.Atoi(portsEndEntry.Text)
-		Scanner.scanningPort = Scanner.startPort
-		Scanner.Host = targetEntry.Text
-		Scanner.totalPorts = Scanner.endPort - Scanner.startPort + 1
-
 		go func() {
+			Scanner.Reset()
+			portsOpenLabel.SetText("")
+			Scanner.startPort, _ = strconv.Atoi(portsStartEntry.Text)
+			Scanner.endPort, _ = strconv.Atoi(portsEndEntry.Text)
+			Scanner.scanningPort = Scanner.startPort
+			Scanner.Host = targetEntry.Text
+			Scanner.totalPorts = Scanner.endPort - Scanner.startPort + 1
+			Scanner.progress = 0.0
+
+			// Create a semaphore channel to limit the number of concurrent goroutines
+			sem := make(chan struct{}, 100)
+			var wg sync.WaitGroup
+
 			for Scanner.scanningPort <= Scanner.endPort {
-				if Scanner.Scan() {
-					Scanner.portso = append(Scanner.portso, Scanner.scanningPort)
-					Scanner.ports_open++
-					open := fmt.Sprintf("%d port(s) open: %d", Scanner.ports_open, Scanner.portso)
-					portsOpenLabel.SetText(open)
-				}
-				Scanner.portsScanned++
-				Scanner.Pprogress()
-				Scanner.progress = float64(Scanner.portsScanned) / float64(Scanner.totalPorts)
-				progressBar.SetValue(Scanner.progress)
+				currentPort := Scanner.scanningPort
 				Scanner.scanningPort++
+
+				sem <- struct{}{}
+				wg.Add(1)
+
+				go func(port int) {
+					defer func() {
+						<-sem
+						wg.Done()
+					}()
+
+					isOpen := Scanner.ScanPort(port)
+					Scanner.Pprogress() // Debug-Ausgabe
+
+					if isOpen {
+						Scanner.mutex.Lock()
+						Scanner.portso = append(Scanner.portso, port)
+						Scanner.ports_open++
+						open := fmt.Sprintf("%d port(s) open: %v", Scanner.ports_open, Scanner.portso)
+						portsOpenLabel.SetText(open)
+						Scanner.mutex.Unlock()
+					}
+
+					Scanner.mutex.Lock()
+					Scanner.portsScanned++
+					Scanner.progress = float64(Scanner.portsScanned) / float64(Scanner.totalPorts)
+					progressBar.SetValue(Scanner.progress)
+					Scanner.mutex.Unlock()
+
+				}(currentPort)
+
 			}
 
+			wg.Wait()
 		}()
-
 	})
 
 	// Checkbox
@@ -130,9 +157,10 @@ func main() {
 	layoutVBox := layout.NewVBoxLayout()
 
 	// Content
+	contentPortO := container.NewHScroll(portsOpenLabel)
 	contentRow1 := container.New(layoutHBox1, targetLabel, portsLabel)
 	contentRow2 := container.New(layoutHBox2, targetContainer, portsStartEntry, arrowLabel, portsEndContainer, checkAll)
-	contentVBox := container.New(layoutVBox, contentRow1, contentRow2, progressLabel, progressBar, portsOpenLabel, scanButton)
+	contentVBox := container.New(layoutVBox, contentRow1, contentRow2, progressLabel, progressBar, contentPortO, scanButton)
 
 	// WOL labels:
 	wolBroadLabel := widget.NewLabel("⭐ broadcast address:port(7 or 9):")
@@ -288,8 +316,10 @@ func about() fyne.CanvasObject {
 	image := canvas.NewImageFromResource(resourceWhitePng)
 	image.FillMode = canvas.ImageFillOriginal
 	gradient := canvas.NewVerticalGradient(color.White, color.RGBA{0, 0, 200, 255})
-	container := container.NewStack(gradient, image)
-	return container
+	cont := container.NewStack(gradient, image)
+	image.Translucency = 0.3
+
+	return cont
 }
 
 func wakeOnLan(broad, mac string) error {

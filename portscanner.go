@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,7 @@ type Portscanner struct {
 	scanningPort int     // actual port
 	progress     float64 // Scanning progress percentage
 	target       string  // Target host and port as a string
+	mutex        sync.Mutex
 }
 
 // String returns the target host and current port as a string
@@ -29,7 +31,7 @@ func (p *Portscanner) String() string {
 
 // Greet prints a welcome message
 func (p *Portscanner) Greet() {
-	fmt.Println("\033[34m✨Welcome to Lennart's Portscanner V3.0✨")
+	fmt.Println("\033[34m✨Welcome to Lennart's Portscanner V3.5✨")
 	fmt.Println("\033[34m⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛")
 	fmt.Println("\033[0m")
 }
@@ -45,6 +47,19 @@ func (p *Portscanner) Scan() bool {
 	defer conn.Close() // Ensure the connection is closed after the scan
 
 	return true // Port is open
+}
+
+func (p *Portscanner) ScanPort(port int) bool {
+	target := p.Host + ":" + strconv.Itoa(port)
+	conn, err := net.DialTimeout("tcp", target, time.Millisecond*200)
+
+	if err != nil {
+		return false // Port is closed or another error occurred
+	}
+	defer conn.Close() // Ensure the connection is closed after the scan
+
+	return true // Port is open
+
 }
 
 // Print prints the current port if it is open
