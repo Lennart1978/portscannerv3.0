@@ -1,4 +1,4 @@
-Portscanner v3.0 is a simple yet powerful tool built using Go and the Fyne toolkit, designed to help you scan a range of ports on a given host. The graphical interface is intuitive, making it easy to specify the target host and range of ports to scan. As the scan progresses, you'll be able to see the progress and any open ports that are found. Releases for Linux, Windows and Android !
+Portscanner v3.0 is a simple yet powerful tool built using Go and the Fyne toolkit, designed to help you scan a range of ports on a given host. The graphical interface is intuitive, making it easy to specify the target host and range of ports to scan. As the scan progresses, you'll be able to see the progress and any open ports that are found. Releases for Linux, Windows and Android ! Version 3.5: Multithreading scan with up to 100 Threads parallel.
 
 <p align="center">
   <img src="v3.5.png" alt="Screenshot"/>
