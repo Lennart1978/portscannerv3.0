@@ -18,6 +18,7 @@ Portscanner v3.0 is a simple yet powerful tool built using Go and the Fyne toolk
 - Wake on LAN
 - Ping
 - Whois
+- Domain Name Resolution
 
 ## Installation
 
