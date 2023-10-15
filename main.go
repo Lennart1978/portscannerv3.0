@@ -40,15 +40,26 @@ func (c *customLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(c.width, c.height)
 }
 
+// MyEntry is a custom widget for the Entry widget
+type MyEntry struct {
+	widget.Entry
+}
+
+// Delete text after mouseclick
+func (e *MyEntry) Tapped(ev *fyne.PointEvent) {
+	e.Entry.SetText("") // Text löschen
+}
+
 var Scanner Portscanner
 
 func main() {
-	// Greetings in console
+
+	// Greetings in console :-)
 	Scanner.Greet()
 
 	a := app.NewWithID("com.lennart.portscanv3")
 	a.SetIcon(resourceIconPng)
-	w := a.NewWindow("Portscanner v3.5")
+	w := a.NewWindow("Portscanner v3.6")
 	w.Resize(fyne.NewSize(windowWidth, windowHeight))
 	w.CenterOnScreen()
 	w.SetFixedSize(true)
@@ -68,7 +79,8 @@ func main() {
 	arrowLabel.Alignment = fyne.TextAlignCenter
 
 	// Entrys
-	targetEntry := widget.NewEntry()
+	targetEntry := &MyEntry{}
+	targetEntry.ExtendBaseWidget(targetEntry)
 	targetEntry.TextStyle.Bold = true
 	targetEntry.Text = "localhost"
 
@@ -173,10 +185,12 @@ func main() {
 	wolSendLabel.TextStyle.Bold = true
 
 	// WOL Entrys
-	wolBroadEntry := widget.NewEntry()
+	wolBroadEntry := &MyEntry{}
+	wolBroadEntry.ExtendBaseWidget(wolBroadEntry)
 	wolBroadEntry.Text = "10.0.0.255:9"
-	wolMacEntry := widget.NewEntry()
-	wolMacEntry.Text = "xx:xx:xx:xx:xx:xx"
+	wolMacEntry := &MyEntry{}
+	wolMacEntry.ExtendBaseWidget(wolMacEntry)
+	wolMacEntry.SetPlaceHolder("xx:xx:xx:xx:xx:xx")
 
 	// WOL Button
 	wolButton := widget.NewButtonWithIcon("send !", theme.LoginIcon(), func() {
@@ -219,7 +233,8 @@ func main() {
 	pingSpLabel := widget.NewLabel("               ")
 
 	// PING Entrys
-	pingHostEntry := widget.NewEntry()
+	pingHostEntry := &MyEntry{}
+	pingHostEntry.ExtendBaseWidget(pingHostEntry)
 	pingHostEntry.Text = "localhost"
 	pingCountEntry := widget.NewEntry()
 	pingCountEntry.Text = "5"
@@ -269,10 +284,11 @@ func main() {
 	whoisHostLabel := widget.NewLabel("                   ⭐ host:")
 	whoisResLabel := widget.NewLabel("")
 	whoisResScroll := container.NewScroll(whoisResLabel)
-	whoisResScroll.SetMinSize(fyne.NewSize(200, 150))
+	whoisResScroll.SetMinSize(fyne.NewSize(200, 152))
 
 	// WHOIS Entrys
-	whoisHostEntry := widget.NewEntry()
+	whoisHostEntry := &MyEntry{}
+	whoisHostEntry.ExtendBaseWidget(whoisHostEntry)
 	whoisHostEntry.Text = "github.com"
 
 	whoisHostEntryContainer := container.New(&customLayout{width: 120, height: 40}, whoisHostEntry)
@@ -298,6 +314,7 @@ func main() {
 		container.NewTabItem("WOL", contentWol),
 		container.NewTabItem("PING", contentPingVBox),
 		container.NewTabItem("WHOIS", contentWhoisVBox),
+		container.NewTabItem("DNR", DomainNameResolution()),
 		container.NewTabItem("ABOUT", about()),
 	)
 
@@ -310,6 +327,59 @@ func main() {
 	// Show window and run
 	w.ShowAndRun()
 
+}
+
+func getIPs(host string) ([]string, error) {
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, err // Fehler zurückgeben, wenn es einen gibt
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("keine IP-Adressen gefunden für %s", host) // Fehler zurückgeben, wenn keine IPs gefunden wurden
+	}
+
+	ipStrings := make([]string, len(ips)) // Slice für die String-Repräsentation der IPs erstellen
+	for i, ip := range ips {
+		ipStrings[i] = ip.String() // Jede IP in einen String konvertieren und zur Slice hinzufügen
+	}
+	return ipStrings, nil // Slice von Strings zurückgeben
+}
+
+func DomainNameResolution() fyne.CanvasObject {
+	// DNR Labels
+	dnrDomainLabel := widget.NewLabel("                 ⭐ domain:")
+	dnrDomainLabel.Alignment = fyne.TextAlignCenter
+	dnrIpLabel := widget.NewLabel("ip(s):")
+	dnrIpLabel.Alignment = fyne.TextAlignCenter
+	dnrResLabel := widget.NewLabel("")
+	dnrResLabel.Alignment = fyne.TextAlignCenter
+	dnrResScroll := container.NewScroll(dnrResLabel)
+	dnrResScroll.SetMinSize(fyne.NewSize(200, 113))
+
+	// DNR Entrys
+	dnrDomainEntry := &MyEntry{}
+	dnrDomainEntry.ExtendBaseWidget(dnrDomainEntry)
+	dnrDomainEntry.Text = "github.com"
+
+	dnrDomainEntryContainer := container.New(&customLayout{width: 120, height: 40}, dnrDomainEntry)
+
+	// DNR Button
+	dnrButton := widget.NewButtonWithIcon("start !", theme.LoginIcon(), func() {
+		host := dnrDomainEntry.Text
+		ip, err := getIPs(host)
+		if err != nil {
+			fmt.Println("Error:", err)
+		} else {
+			dnrResLabel.SetText(fmt.Sprintf("%s", ip))
+		}
+	})
+	// DNR Layout
+	layoutDnrEntryLabel := layout.NewHBoxLayout()
+	layoutDnr := layout.NewVBoxLayout()
+	// DNR Content
+	contentDnrRow1 := container.New(layoutDnrEntryLabel, dnrDomainLabel, dnrDomainEntryContainer)
+	content := container.New(layoutDnr, contentDnrRow1, dnrIpLabel, dnrResScroll, dnrButton)
+	return content
 }
 
 func about() fyne.CanvasObject {

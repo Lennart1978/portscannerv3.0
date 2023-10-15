@@ -31,7 +31,7 @@ func (p *Portscanner) String() string {
 
 // Greet prints a welcome message
 func (p *Portscanner) Greet() {
-	fmt.Println("\033[34m✨Welcome to Lennart's Portscanner V3.5✨")
+	fmt.Println("\033[34m✨Welcome to Lennart's Portscanner V3.6✨")
 	fmt.Println("\033[34m⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛")
 	fmt.Println("\033[0m")
 }
